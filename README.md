@@ -1,7 +1,7 @@
 # sigrok-pico
 Warning: This is all very much in development!!!
 Use a raspberry pi pico (rp2040) as a logic analyzer and oscilloscope with sigrok
-This is not just a "dump a trace to text file" but uses the pico SDK CDC serial library to communicate with sigrok-cli/pulseview through a driver.
+This implementation uses the pico SDK CDC serial library to communicate with sigrok-cli/pulseview through a sigrok driver.
 
 sigrok-generic is the sigrok driver hardware library.  Originally I hoped to create a "standard" protocol description as to how various MCUs might communicate with sigrok, but it's unlikely I'll ever enable anything but a pico.
 
