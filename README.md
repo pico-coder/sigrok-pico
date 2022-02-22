@@ -1,9 +1,11 @@
 # sigrok-pico
-Warning: This is all very much in development!!!
 Use a raspberry pi pico (rp2040) as a logic analyzer and oscilloscope with sigrok
 This implementation uses the pico SDK CDC serial library to communicate with sigrok-cli/pulseview through a sigrok driver.
 
-sigrok-generic is the sigrok driver hardware library.  Originally I hoped to create a "standard" protocol description as to how various MCUs might communicate with sigrok, but it's unlikely I'll ever enable anything but a pico.
+raspberrypi_pico is the libsigrok directory that should be under libsigrok/src/hardware.
+Create the new device with 
+>sigrok-util/source $ ./new-driver "RaspberryPI PICO"
+
 
 pico_pgen is a simple digital function generator useful for creating patterns to test.
 
