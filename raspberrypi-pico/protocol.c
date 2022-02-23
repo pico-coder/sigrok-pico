@@ -129,12 +129,16 @@ void process_D4(struct sr_dev_inst *sdi,struct dev_context *d){
      }else if(cbyte>=0x80){ //sample with possible rle
        rlecnt+=(cbyte&0x70)>>4; 
        if(rlecnt){
-         //Duplicate the previous values
-         //The maximum value of one rle is 640 but we might have received several so
-         //call process group first
-	 //todo - the size of the digital buffer is much larger than this, but start with it for now...
-         if((rlecnt+d->cbuf_wrptr)>2048){
+         //On a value change, duplicate the previous values first.
+         //The maximum value of one rle is 640.
+         //To ensure we don't overflow the sample buffer but still send it large chunks of data 
+         //(to make the packet sends to the session efficient) only call process group after
+         //a large number of samples have been seen.
+         //Likely we could use the max rle value of 640 but 2048 gives some extra room.
+         if((rlecnt+d->cbuf_wrptr)>(d->sample_buf_size-2048)){
 	   //process_group is sent the number of slices which is just the cbufwrptr divided by the slice size
+           //This modulo check should never happen as long the calculations for dig_sample_bytes etc are 
+           //correct, but it's a good cross check for code development.
 	   if((d->cbuf_wrptr)%(d->dig_sample_bytes)){
 	     sr_err("Modulo fail %d %d ",d->cbuf_wrptr,d->dig_sample_bytes);
            }

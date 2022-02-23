@@ -194,10 +194,7 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 //All logical channels are packed together, where a slice of N channels takes roundup(N/8) bytes
 //This never changes even if channels are disabled because PV expects disabled channels to still 
 //be accounted for in the packing
-//this ran forever but looks wrong... 16 channels would say 3 bytes
-//        devc->dig_sample_bytes=((devc->num_d_channels/8)+1);
-        devc->dig_sample_bytes=(devc->num_d_channels/8);
-        if((devc->num_d_channels)&0x7) devc->dig_sample_bytes++;
+        devc->dig_sample_bytes=((devc->num_d_channels+7)/8);
 	//These are the slice sizes of the data on the wire
         //1 7 bit field per byte
         devc->bytes_per_slice=(devc->num_a_channels*devc->a_size);
@@ -206,10 +203,10 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
           devc->bytes_per_slice+=(devc->num_d_channels+6)/7;
         }
         sr_dbg("num channels a %d d %d bps %d dsb %d",num_a,num_d,devc->bytes_per_slice,devc->dig_sample_bytes);
-//Each analog channel is it's own grup
+//Each analog channel is it's own group
 //Digital are just channels
 //Grouping of channels is rather arbitrary as parameters like sample rate and number of samples
-//apply to all changes.  Analog channels do have a scale and offset, but that it does
+//apply to all changes.  Analog channels do have a scale and offset, but that is applied
 //without involvement of the session.
         devc->analog_groups = g_malloc0(sizeof(struct sr_channel_group *) *
                 devc->num_a_channels);
@@ -237,7 +234,11 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 	//In large sample usages we get the call to receive with large transfers.
         //Since the CDC serial implemenation can silenty lose data as it gets close to full, allocate
         //storage for a half buffer which in a worst case scenario has 2x ratio of transmitted bytes
-        // to storage bytes
+        // to storage bytes. 
+        //Note: The intent of making this buffer large is to prevent CDC serial buffer overflows.
+        //However, it is likely that if the host is running slow (i.e. it's a raspberry pi model 3) that it becomes
+        //compute bound and doesn't service CDC serial responses in time to not overflow the internal CDC buffers.
+        //And thus no serial buffer is large enough.  But, it's only 256K....
         devc->serial_buffer_size=256000;
         devc->buffer=NULL;
 	sr_dbg("Setting serial buffer size: %i.", devc->serial_buffer_size);
@@ -246,8 +247,9 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
         //channel data sent as separate packets.  
         //Logical trace values are packed together.
         //A serial byte in normal mode never represent more than one sample so a 2x multiplier is plenty.
-        //In D4 mode a serial byte can represents 100s of samples due to RLE, but the RLE generation
-        //is limited to a max of 256 samples in the device code.
+        //In D4 mode a serial byte can represents 100s of samples due to RLE, but process_D4 ensures that
+        //it breaks up the rle_memset calls to prevent overflowing the sample buffer.
+        //that it doesn't overflow the sample buffers.
         devc->sample_buf_size=devc->serial_buffer_size*2;
         for(i=0;i<devc->num_a_channels;i++){
             devc->a_data_bufs[i]=NULL;
@@ -262,7 +264,7 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
         devc->limit_samples=1000;
 
         if(raspberrypi_pico_get_dev_cfg(sdi)!=SR_OK){
-            return SR_ERR;
+            return NULL;
         };
    
         sr_err("sr_err level logging enabled");
@@ -463,8 +465,8 @@ static int dev_acquisition_start(const struct sr_dev_inst *sdi)
        //Apply sample rate limits
        //Save off the lower rate values which are hacked way of getting configs to the device
        uint8_t cfg_bits;
-       cfg_bits=(devc->sample_rate)&0xE;
-       sr_warn("Capture cfg_bits of 0x%X",cfg_bits);
+       cfg_bits=devc->sample_rate%10;
+       sr_warn("Capture cfg_bits of 0x%X from sample rate %lld",cfg_bits,devc->sample_rate);
        if((a_enabled==3)&&(devc->sample_rate>166666)){
          sr_err("ERROR:3 channel ADC sample rate dropped to 166.666khz");
          devc->sample_rate=166667;
@@ -498,10 +500,11 @@ static int dev_acquisition_start(const struct sr_dev_inst *sdi)
             sr_err("WARN: Set ADC to integer divisor rate of %llu\n\r",devc->sample_rate);
           }
        }   
-       devc->sample_rate&=0xFFFFFFFF0;
-       devc->sample_rate|=cfg_bits;
+       
+       devc->sample_rate=(devc->sample_rate/10)*10;
+       devc->sample_rate+=cfg_bits;
        if(cfg_bits){
-         sr_warn("Embedding cfg_bits of 0x%X in sample_rate\n\r",cfg_bits);
+         sr_warn("Embedding cfg_bits of 0x%X in sample_rate %lld\n\r",cfg_bits,devc->sample_rate);
        }
        sprintf(&tmpstr[0],"R%llu\n", devc->sample_rate);
        if(send_serial_w_ack(serial, tmpstr)!=SR_OK) {
