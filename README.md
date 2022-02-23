@@ -9,8 +9,11 @@ pico_sdk_sigrok is the pico sdk C code for the PICO RP2040 device.
 
 ## Files
 PICOBuildNotes.md - build notes for building the PICO device assuming you have gone through the PICO C SDK "getting started with PICO".
-SigrokBuildNotes.md - rough description of how one might build libsigrok following the normal build flows.  
-  Once the raspberrypi_pico directory is pulled into the mainline sigrok repo these notes will not be needed and normal libsigrok builds should be used.
+
+SigrokBuildNotes.md - rough libsigrok build notes which will be depracated once raspberrypi_pico is mainline
+
 GettingStarted.md - quick run down on setting things up.
+
 AnalyzerDetails.md - details on supported modes of the analyzer and various limitations.
+
 SerialProtocol.md - details of the "over the wire" protocol used between the sigrok driver and the device.
