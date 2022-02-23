@@ -4,7 +4,9 @@ This implementation uses the pico SDK CDC serial library to communicate with sig
 
 ## Directories:
 raspberrypi_pico is the libsigrok directory that should be under libsigrok/src/hardware once I get my pull approved.
+
 pico_pgen is a simple digital function generator useful for creating patterns to test.
+
 pico_sdk_sigrok is the pico sdk C code for the PICO RP2040 device.
 
 ## Files
