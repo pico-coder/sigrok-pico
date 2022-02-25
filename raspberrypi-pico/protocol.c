@@ -67,7 +67,7 @@ int send_serial_w_resp(struct sr_serial_dev_inst *serial, char *str,char *resp,s
        //a long worst case timeout to always be taken.  So, instead loop waiting for a first byte, and
        //then a final small delay for the rest. 
         for(i=0;i<1000;i++){ //wait up to 1 second in ms increments
-            num_read = serial_read_blocking(serial, resp, cnt, 1);
+	  num_read = serial_read_blocking(serial, resp, cnt, 1); 
             if(num_read>0) break;
         }
         //sr_spew("rwprsp1 i %d nr %d",i,num_read);
@@ -250,7 +250,7 @@ void process_slice(struct sr_dev_inst *sdi,struct dev_context *devc){
               tmp32=devc->buffer[devc->ser_rdptr]-0x80;
               devc->a_data_bufs[i][devc->cbuf_wrptr]=((float)tmp32 * devc->a_scale[i])+devc->a_offset[i];
               devc->a_last[i]=devc->a_data_bufs[i][devc->cbuf_wrptr];
-              sr_spew("AChan %d value %f ",i,devc->a_data_bufs[i][devc->cbuf_wrptr]);
+              sr_spew("AChan %d t32 %d value %f wrptr %d rdptr %d sc %d off %d",i,tmp32,devc->a_data_bufs[i][devc->cbuf_wrptr],devc->cbuf_wrptr,devc->ser_rdptr,devc->a_scale[i],devc->a_offset[i]);
               devc->ser_rdptr++;
            }//if channel enabled
        }//for num_a_channels
@@ -688,18 +688,21 @@ SR_PRIV int raspberrypi_pico_get_dev_cfg(const struct sr_dev_inst *sdi)
               sr_err("ERROR:No response from device for analog channel query");
               return SR_ERR;
            }
+           //null end of string for strsplit
+           response[ret]=0;
            tokens=NULL;
            tokens = g_strsplit(response, ",", 0);
            num_tokens = g_strv_length(tokens);
            if (num_tokens == 2) {
              devc->a_scale[i]=atof(tokens[0]);
              devc->a_offset[i]=atof(tokens[1]);
-             sr_dbg("A%d scale %f offset %f\n",i,devc->a_scale[i],devc->a_offset[i]);
+             sr_dbg("A%d scale %f offset %f response #%s#\n",i,devc->a_scale[i],devc->a_offset[i],response);
            }else{
-             sr_err("ERROR:Ascale read c%d got unparseable response %s",i,response);
-             //force a good fixed value
-             devc->a_scale[i]=1/256;
-             devc->a_offset[i]=0;
+             sr_err("ERROR:Ascale read c%d got unparseable response %s tokens %d",i,response,num_tokens);
+             //force a legal fixed value.  With a scale of 0 we'll always return 1.234 indicating
+             //a failue in parsing the scale
+             devc->a_scale[i]=0.0;
+             devc->a_offset[i]=1.234;
            }
            g_strfreev(tokens);
            g_free(cmd);

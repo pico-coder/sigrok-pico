@@ -112,6 +112,7 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
                 sr_err("1st serial open fail");
                 return NULL;
         }
+
         sr_info("Reseting device with *s at %s.", conn);
         send_serial_char(serial,'*');
         g_usleep(10000);
@@ -125,7 +126,7 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 
 
         //Send identify 
-        num_read=send_serial_w_resp(serial,"i\n",buf,20);
+        num_read=send_serial_w_resp(serial,"i\n",buf,17);
         if(num_read<16){
           sr_err("1st identify failed");
           serial_close(serial);
@@ -138,7 +139,7 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
           sr_err("Send second *");
           send_serial_char(serial,'*');
           g_usleep(100000);
-          num_read=send_serial_w_resp(serial,"i\n",buf,20);
+          num_read=send_serial_w_resp(serial,"i\n",buf,17);
           if(num_read<10){
             sr_err("Second attempt failed");
             return NULL;
@@ -167,8 +168,7 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 	sdi->model = g_strdup("PICO");
 	sdi->version = g_strdup("00");
 	sdi->conn = serial;
-//broken/fixme
-//	sdi->driver = &raspberrypi_pico_driver_info;
+	sdi->driver = &raspberrypi_pico_driver_info;
 	sdi->inst_type = SR_INST_SERIAL;
 	sdi->serial_num = g_strdup("N/A");
         if(((num_a==0)&&(num_d==0))
@@ -272,6 +272,7 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
         sr_info("sr_info level logging enabled");
         sr_dbg("sr_dbg level logging enabled");
         sr_spew("sr_spew level logging enabled");
+
         return std_scan_complete(di, g_slist_append(NULL, sdi));
 
 }
@@ -400,8 +401,6 @@ static int dev_acquisition_start(const struct sr_dev_inst *sdi)
         sr_dbg("dsbstart %d",devc->dig_sample_bytes);
 	devc->buffer = g_malloc(devc->serial_buffer_size);
         if(!(devc->buffer)){sr_err("ERROR:serial buffer malloc fail");return SR_ERR_MALLOC;}
-      
-
         //Get device in idle state
         if(serial_drain(serial)!=SR_OK){sr_err("Initial Drain Failed\n\r");return SR_ERR;}
         send_serial_char(serial,'*');
@@ -465,11 +464,12 @@ static int dev_acquisition_start(const struct sr_dev_inst *sdi)
        //Apply sample rate limits
        //Save off the lower rate values which are hacked way of getting configs to the device
        uint8_t cfg_bits;
-       cfg_bits=devc->sample_rate%10;
+       cfg_bits=(devc->sample_rate%10&0x6); //Only bits 2&1 are used as cfg_bits
+       devc->sample_rate-=cfg_bits;
        sr_warn("Capture cfg_bits of 0x%X from sample rate %lld",cfg_bits,devc->sample_rate);
-       if((a_enabled==3)&&(devc->sample_rate>166666)){
-         sr_err("ERROR:3 channel ADC sample rate dropped to 166.666khz");
-         devc->sample_rate=166667;
+       if((a_enabled==3)&&(devc->sample_rate>166660)){
+         sr_err("ERROR:3 channel ADC sample rate dropped to 166.660khz");
+         devc->sample_rate=166660;
        }
        if((a_enabled==2)&&(devc->sample_rate>250000)){
          sr_err("ERROR:2 channel ADC sample rate dropped to 250khz");
@@ -490,18 +490,51 @@ static int dev_acquisition_start(const struct sr_dev_inst *sdi)
          sr_err("Sample rate override to max of 120Msps");
          devc->sample_rate=12000000;
        }
-       //Determine a sample rate that doesn't require fractional dividers
+       //It may take a very large number of samples to notice, but if digital and analog are enabled
+       //and either PIO or ADC are fractional the samples will skew over time.
+       //24Mhz is the max common divisor to the 120Mhz and 48Mhz ADC clock
+       //so force an integer divisor to it.
+       if((a_enabled>0)&&(d_enabled>0)){
+	 if(24000000ULL%(devc->sample_rate)){
+            uint32_t commondivint=24000000ULL/(devc->sample_rate);
+            //Always increment the divisor so that we go down in frequency to avoid max sample rate issues
+            commondivint++;
+            devc->sample_rate=24000000ULL/commondivint;
+	    //While the common divisor is an integer, that does not mean the resulting sample rate is, and
+            //we want to keep the sample_rate divisible by 10 to support the cfg_bits
+            while((devc->sample_rate%10)&&(commondivint<4800)){
+               commondivint++;
+               devc->sample_rate=24000000ULL/commondivint;
+               //sr_err(" sample rate of %llu div %u\n\r",devc->sample_rate,commondivint); 
+              }
+            //Make sure the divisor increement didn't make use go too low.
+            if(devc->sample_rate<5000){devc->sample_rate=50000;}
+            sr_err("WARN: Forcing common integer divisor sample rate of %llu div %u\n\r",devc->sample_rate,commondivint);
+          }
+          
+       }   
+       //If we are only digital only or only analog print a warning that the 
+       //fractional divisors aren't a true PLL fractional feedback loop and thus
+       //could have sample to sample variation.
        if(a_enabled>0){
-          uint32_t adcdivint=48000000ULL/(devc->sample_rate*a_enabled);
-          if(48000000ULL%adcdivint)adcdivint++;
-          uint64_t new_rate=48000000ULL/(adcdivint*a_enabled);
-          if(new_rate!=devc->sample_rate){
-            devc->sample_rate=new_rate;
-            sr_err("WARN: Set ADC to integer divisor rate of %llu\n\r",devc->sample_rate);
+	 if(48000000ULL%(devc->sample_rate*a_enabled)){
+           sr_warn("WARN: Non integer ADC divisor of 48Mhz clock for sample rate %llu may cause sample to sample variability.",devc->sample_rate);
           }
        }   
-       
-       devc->sample_rate=(devc->sample_rate/10)*10;
+       if(d_enabled>0){
+	 if(120000000ULL%(devc->sample_rate)){
+           sr_warn("WARN: Non integer PIO divisor of 120Mhz for sample rate %llu may cause sample to sample variability.",devc->sample_rate);
+          }
+       }   
+
+
+       //modulo 10 to add cfg_bits back in
+       //All code above should create overrides that are multiples of 10, but add a check just in case.
+       if(devc->sample_rate%10){
+         sr_err("Output sample rate %llu not mod 10",devc->sample_rate);
+         devc->sample_rate=(devc->sample_rate/10)*10;
+       }
+
        devc->sample_rate+=cfg_bits;
        if(cfg_bits){
          sr_warn("Embedding cfg_bits of 0x%X in sample_rate %lld\n\r",cfg_bits,devc->sample_rate);
