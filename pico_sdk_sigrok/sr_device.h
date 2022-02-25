@@ -111,7 +111,7 @@ void __not_in_flash_func(tx_init)(sr_device_t *d){
 }
 //Process incoming character stream
 //Return 1 if the device rspstr has a response to send to host
-
+//Be sure that rspstr does not have \n  or \r.
 int __not_in_flash_func(process_char)(sr_device_t *d,char charin){
    int tmpint,tmpint2,ret;
    //set default rspstr for all commands that have a dataless ack
@@ -127,7 +127,7 @@ int __not_in_flash_func(process_char)(sr_device_t *d,char charin){
     switch(d->cmdstr[0]){
     case 'i':
        //SREGEN,AxxyDzz,00 - num analog, analog size, num digital,version
-       sprintf(d->rspstr,"SRPICO,A%02d1D%02d,00\n",NUM_A_CHAN,NUM_D_CHAN);
+       sprintf(d->rspstr,"SRPICO,A%02d1D%02d,00",NUM_A_CHAN,NUM_D_CHAN);
        Dprintf("ID rsp %s\n\r",d->rspstr);
        ret=1;
        break;
@@ -158,7 +158,7 @@ int __not_in_flash_func(process_char)(sr_device_t *d,char charin){
      case 'a':
          tmpint=atoi(&(d->cmdstr[1])); //extract channel number
          if(tmpint>=0){
-            sprintf(d->rspstr,"0.0257,0.0\n");  //3.3/(2^7) and 0V offset
+            sprintf(d->rspstr,"0.0257,0.0");  //3.3/(2^7) and 0V offset
             Dprintf("ASCL%d\n\r",tmpint);
             ret=1;
          }else{

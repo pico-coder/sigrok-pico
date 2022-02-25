@@ -126,7 +126,7 @@ void __not_in_flash_func(my_stdio_usb_out_chars)(const char *buf, int length) {
             if (n) {
                 int n2 = (int) tud_cdc_write(buf + i, (uint32_t)n);
                 tud_task();
-		//                tud_cdc_write_flush();
+		tud_cdc_write_flush();
                 i += n2;
                 last_avail_time = time_us_64();
             } else {
@@ -700,7 +700,7 @@ int __not_in_flash_func(check_half)(sr_device_t *d,volatile uint32_t *tstsa0,vol
            d->aborted=true;
            //Issue end of trace markers to host
            //The main loop also sends these periodically until the host is done..
-           printf("!!!");
+ 	   my_stdio_usb_out_chars("!!!",3);//todo-cleanup        printf("!!!");
            //Dprintf("scnt %u \n\r",d->scnt);
            //Dprintf("a st %u msk %u\n\r",(*tstsa1),d->a_mask);
            //Dprintf("d st %u msk %u\n\r",(*tstsd1),d->d_mask);
@@ -864,8 +864,11 @@ int __not_in_flash_func(main)(){
     while(1){
           __sev();//send event to wake core1
           if(send_resp){
-               printf("%s",dev.rspstr);
-               send_resp=false;
+            int mylen=strlen(dev.rspstr);
+            //Don't mix printf with direct to usb commands
+	    //printf("%s",dev.rspstr);
+	    my_stdio_usb_out_chars(dev.rspstr,mylen);
+            send_resp=false;
            }
          //Dprintf("ss %d %d",dev.sending,dev.started);
          if(dev.sending && (dev.started==false)) {
@@ -883,6 +886,11 @@ int __not_in_flash_func(main)(){
            tidx=0;
            ttlidx=0;
 #endif
+           //Sample rate must always be even.  Pulseview code enforces this 
+           //because a frequency step of 2 is required to get a pulldown to specify
+           //the sample rate, but sigrok cli can still pass it.
+           dev.sample_rate>>=1;
+           dev.sample_rate<<=1;
            uint8_t cfg_bits;
            //Bits 2:1 are special cfg bits
            //Bit 2 enables PIO level triggering
@@ -966,24 +974,45 @@ int __not_in_flash_func(main)(){
           dev.abuf0_start=dev.dbuf1_start+dev.d_size;
           dev.abuf1_start=dev.abuf0_start+dev.a_size;
 
+
+          volatile uint32_t *adcdiv;
+          adcdiv=(volatile uint32_t *)(ADC_BASE+0x10);//ADC DIV
+          //   Dprintf("adcdiv start %u\n\r",*adcdiv);
 	  //	  Dprintf("starting d_nps %u a_chan_cnt %u d_size %u a_size %u a_mask %X\n\r"
           //         ,dev.d_nps,dev.a_chan_cnt,dev.d_size,dev.a_size,dev.a_mask);
           //Dprintf("start offsets d0 0x%X d1 0x%X a0 0x%X a1 0x%X samperhalf %u\n\r"
           //    ,dev.dbuf0_start,dev.dbuf1_start,dev.abuf0_start,dev.abuf1_start,dev.samples_per_half);
           //Dprintf("starting data buf values 0x%X 0x%X\n\r",capture_buf[dev.dbuf0_start],capture_buf[dev.dbuf1_start]);
-
           uint32_t adcdivint=48000000ULL/(dev.sample_rate*dev.a_chan_cnt);
-          if(dev.a_chan_cnt){
-            dev.sample_rate=48000000ULL/(adcdivint*dev.a_chan_cnt);
-            Dprintf("ADC Adjusted sample rate %u\n\r",dev.sample_rate);
-          }
           if(dev.a_chan_cnt){
  	     adc_run(false);
              //             en, dreq_en,dreq_thresh,err_in_fifo,byte_shift to 8 bit
              adc_fifo_setup(false, true,   1,           false,       true); 
              adc_fifo_drain();
              //Dprintf("astart cnt %u div %f\n\r",dev.a_chan_cnt,(float)adcdivint);
-             adc_set_clkdiv((float)adcdivint);
+
+             //This sdk function doesn't support support the fractional divisor
+             // adc_set_clkdiv((float)(adcdivint-1));
+             //The ADC divisor has some not well documented limitations.
+             //-A value of 0 actually creates a 500khz sample clock.
+             //-Values below 96 don't work well (the SDK has comments about it
+             //in the adc_set_clkdiv document)
+	     //It is also import to subtract one from the desired divisor
+	     //because the period of ADC clock is 1+INT+FRAC/256
+	     //For the case of a requested 500khz clock, we would normally write
+             //a divisor of 95, but doesn't give the desired result, so we use 
+             //the 0 value instead.
+             //Fractional divisors should generally be avoided because it creates
+             //skew with digital samples.
+             uint8_t adc_frac_int;
+             adc_frac_int=(uint8_t)(((48000000ULL%dev.sample_rate)*256ULL)/dev.sample_rate);
+             if(adcdivint<=96){ 
+               *adcdiv=0;
+             }else{
+	       *adcdiv=((adcdivint-1)<<8)|adc_frac_int; 
+             }
+             //Dprintf("adcdiv %u frac %d\n\r",*adcdiv,adc_frac_int);
+
              //This is needed to clear the AINSEL so that when the round robin arbiter starts we start sampling on channel 0
              adc_select_input(0);
              adc_set_round_robin(dev.a_mask & 0x7);
@@ -1023,12 +1052,15 @@ int __not_in_flash_func(main)(){
              //start at GPIO2 (keep 0 and 1 for uart)
              sm_config_set_in_pins(&c, 2);
              sm_config_set_wrap(&c, offset, offset);
+
              uint16_t div_int;              
              uint8_t frac_int;
              div_int=frequency_count_khz(CLOCKS_FC0_SRC_VALUE_CLK_SYS)*1000/dev.sample_rate;
              if(div_int<1) div_int=1;
              frac_int=(uint8_t)(((frequency_count_khz(CLOCKS_FC0_SRC_VALUE_CLK_SYS)*1000%dev.sample_rate)*256ULL)/dev.sample_rate);
-             //Dprintf("PIO sample clk %u divint %d divfrac %d \n\r",dev.sample_rate,div_int,frac_int);
+             Dprintf("PIO sample clk %u divint %d divfrac %d \n\r",dev.sample_rate,div_int,frac_int);
+             //Unlike the ADC, the PIO int divisor does not have to subtract 1.
+             //Frequency=sysclkfreq/(CLKDIV_INT+CLKDIV_FRAC/256)
              sm_config_set_clkdiv_int_frac(&c,div_int,frac_int);
 
              //Since we enable digital channels in groups of 4, we always get 32 bit words
@@ -1054,7 +1086,7 @@ int __not_in_flash_func(main)(){
              //Use bits from sample rate to enable hardware triggering.
              //Only supported on D2 and level detection only.
              //Only enabled if no analog channels are enabled because there is no way to
-             //interlock the PIO starting and the ADC startking.
+             //interlock the PIO starting and the ADC starting.
              //This just creates a wait state as the first instruction executed
              if(cfg_bits&4){
                if(dev.a_mask==0){
@@ -1075,7 +1107,7 @@ int __not_in_flash_func(main)(){
          //These catch cases in DMA coding where DMA engines have started too soon..
 
           if((*tcountd0)!=(*tcountdbgd0)&&(dev.d_mask)){Dprintf("\n\r\n\rERROR: DMAD0 changing\n\r\n\r");}
-          if((*tcounta0)!=(*tcountdbga0)&&(dev.d_mask)){Dprintf("\n\r\n\rERROR: DMAA0 changing\n\r\n\r");}
+          if((*tcounta0)!=(*tcountdbga0)&&(dev.a_mask)){Dprintf("\n\r\n\rERROR: DMAA0 changing\n\r\n\r");}
           if((*tcountd1)!=0){Dprintf("\n\r\n\rERROR: DMAD1 should start with 0 tcount\n\r\n\r");}
           if((*tcounta1)!=0){Dprintf("\n\r\n\rERROR: DMAA1 should start with 0 tcount\n\r\n\r");}
 
@@ -1129,7 +1161,7 @@ int __not_in_flash_func(main)(){
 	//In high verbosity modes the host can miss the "!" so send these until it sends a "+"
 	if(dev.aborted==true){
 	  Dprintf("sending abort !\n\r");
-           printf("!!!");
+	  my_stdio_usb_out_chars("!!!",3);//todo-cleanup        printf("!!!");
            sleep_us(200000);
         }
        //if we abort or normally finish a run sending gets dropped
@@ -1228,7 +1260,7 @@ int __not_in_flash_func(main)(){
              //delay the start of a capture
              Dprintf("Complete: SRate %d NSmp %d\n\r",dev.sample_rate,dev.num_samples);
              Dprintf("Cont %d bcnt %d\n\r",dev.cont,dev.byte_cnt);
-             Dprintf("DMsk 0x%X AMsk 0x%X\n\r",dev.cont,dev.d_mask,dev.a_mask);
+             Dprintf("DMsk 0x%X AMsk 0x%X\n\r",dev.d_mask,dev.a_mask);
              Dprintf("Half buffers %d sampperhalf %d\n\r",num_halves,dev.samples_per_half);
        
 
