@@ -1058,7 +1058,7 @@ int __not_in_flash_func(main)(){
              div_int=frequency_count_khz(CLOCKS_FC0_SRC_VALUE_CLK_SYS)*1000/dev.sample_rate;
              if(div_int<1) div_int=1;
              frac_int=(uint8_t)(((frequency_count_khz(CLOCKS_FC0_SRC_VALUE_CLK_SYS)*1000%dev.sample_rate)*256ULL)/dev.sample_rate);
-             Dprintf("PIO sample clk %u divint %d divfrac %d \n\r",dev.sample_rate,div_int,frac_int);
+	     //             Dprintf("PIO sample clk %u divint %d divfrac %d \n\r",dev.sample_rate,div_int,frac_int);
              //Unlike the ADC, the PIO int divisor does not have to subtract 1.
              //Frequency=sysclkfreq/(CLKDIV_INT+CLKDIV_FRAC/256)
              sm_config_set_clkdiv_int_frac(&c,div_int,frac_int);

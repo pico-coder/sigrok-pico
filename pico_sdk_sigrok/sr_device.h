@@ -158,8 +158,10 @@ int __not_in_flash_func(process_char)(sr_device_t *d,char charin){
      case 'a':
          tmpint=atoi(&(d->cmdstr[1])); //extract channel number
          if(tmpint>=0){
-            sprintf(d->rspstr,"0.0257,0.0");  //3.3/(2^7) and 0V offset
-            Dprintf("ASCL%d\n\r",tmpint);
+	   //scale and offset are both in integer uVolts
+           //separated by x
+            sprintf(d->rspstr,"25700x0");  //3.3/(2^7) and 0V offset
+            //Dprintf("ASCL%d\n\r",tmpint);
             ret=1;
          }else{
             Dprintf("bad ascale %s\n\r",d->cmdstr);

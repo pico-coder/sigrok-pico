@@ -691,18 +691,18 @@ SR_PRIV int raspberrypi_pico_get_dev_cfg(const struct sr_dev_inst *sdi)
            //null end of string for strsplit
            response[ret]=0;
            tokens=NULL;
-           tokens = g_strsplit(response, ",", 0);
+           tokens = g_strsplit(response, "x", 0);
            num_tokens = g_strv_length(tokens);
            if (num_tokens == 2) {
-             devc->a_scale[i]=atof(tokens[0]);
-             devc->a_offset[i]=atof(tokens[1]);
-             sr_dbg("A%d scale %f offset %f response #%s#\n",i,devc->a_scale[i],devc->a_offset[i],response);
+             devc->a_scale[i]=((float)atoi(tokens[0]))/1000000.0;
+             devc->a_offset[i]=((float)atoi(tokens[1]))/1000000.0;
+             sr_dbg("A%d scale %f offset %f response #%s# tokens #%s# #%s#\n",i,devc->a_scale[i],devc->a_offset[i],response,tokens[0],tokens[1]);
            }else{
              sr_err("ERROR:Ascale read c%d got unparseable response %s tokens %d",i,response,num_tokens);
-             //force a legal fixed value.  With a scale of 0 we'll always return 1.234 indicating
+             //force a legal fixed value assuming a 3.3V scale
              //a failue in parsing the scale
-             devc->a_scale[i]=0.0;
-             devc->a_offset[i]=1.234;
+             devc->a_scale[i]=0.0257;
+             devc->a_offset[i]=0.0;
            }
            g_strfreev(tokens);
            g_free(cmd);
