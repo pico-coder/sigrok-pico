@@ -13,11 +13,12 @@ Use a raspberry pi pico (rp2040) as a logic analyzer and oscilloscope with sigro
 This implementation uses the pico SDK CDC serial library to communicate with sigrok-cli/pulseview through a sigrok driver.
 
 ## Directories:
-raspberrypi_pico is the libsigrok directory that should be under libsigrok/src/hardware once I get my pull approved.
 
 pico_pgen is a simple digital function generator useful for creating patterns to test.
 
 pico_sdk_sigrok is the pico sdk C code for the PICO RP2040 device.
+
+The latest libsigrok code exists as a fork at https://github.com/pico-coder/libsigrok
 
 ## Files
 PICOBuildNotes.md - build notes for building the PICO device assuming you have gone through the PICO C SDK "getting started with PICO".
