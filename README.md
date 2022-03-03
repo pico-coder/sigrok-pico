@@ -1,3 +1,13 @@
+# NOTE:
+# At this time my pull request into the main sigrok repo has not been accepted.
+# Thus mainline releases of sigrok cli and pulseview do not support this repo (or any other way to communiate to a PICO).
+
+The pull request is https://github.com/sigrokproject/libsigrok/pull/181 . I have no ETA when it may be pulled.
+
+So far two other people have managed to combine my pull request into a libsigrok build. If you are on linux it's probably a practical experiment to try.  Windows may be much more difficult (my attempts to do so cross compiles have failed). See SigrokBuildNotes.md
+
+I don't have the necessary expertise to build and release sigrok-cli or pulseview executables.
+#
 # sigrok-pico
 Use a raspberry pi pico (rp2040) as a logic analyzer and oscilloscope with sigrok.
 This implementation uses the pico SDK CDC serial library to communicate with sigrok-cli/pulseview through a sigrok driver.
