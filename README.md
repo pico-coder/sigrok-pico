@@ -4,7 +4,7 @@
 
 The pull request is https://github.com/sigrokproject/libsigrok/pull/181 . I have no ETA when it may be pulled.
 
-So far two other people have managed to combine my pull request into a libsigrok build. If you are on linux it's probably a practical experiment to try.  Windows may be much more difficult (my attempts to do so cross compiles have failed). See SigrokBuildNotes.md
+So far two other people have managed to combine my pull request into a libsigrok build. If you are on linux it's probably a practical experiment to try.  Windows may be much more difficult (my attempts to do so cross compiles have failed). 4GB of RAM is recommended for pulseview builds to avoid disk swap issues.  See SigrokBuildNotes.md
 
 I don't have the necessary expertise to build and release sigrok-cli or pulseview executables.
 #
