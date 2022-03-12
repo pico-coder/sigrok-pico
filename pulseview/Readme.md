@@ -1,8 +1,9 @@
-I do have an installer, but it is 40MB in size, but github limits files to 25MB. I'll need to setup some kind of dropbox or similar link.  
-If you are interested in the installer, or have a recommendation on what service to use, let me know..
-//////////////////////////////
-
 This is an unofficial Pulseview windows installer to use the raspberry pi pico on windows.
+
+Github limits filesizes to 25MB but it is 40MB.  I think you should be able to download this without creating a drobox account.
+
+https://www.dropbox.com/s/n4auyf2ltbp7lai/pulseview-0.5.0-git-7e5c839-installer.exe?dl=0
+
 It is recommended that you uninstall previous versions first. 
 
 You may need to install this to get msvcr100.dll
