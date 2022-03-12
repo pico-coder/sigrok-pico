@@ -1,3 +1,7 @@
+I do have an installer, but it is 40MB in size, but github limits files to 25MB. I'll need to setup some kind of dropbox or similar link.  
+If you are interested in the installer, or have a recommendation on what service to use, let me know..
+//////////////////////////////
+
 This is an unofficial Pulseview windows installer to use the raspberry pi pico on windows.
 It is recommended that you uninstall previous versions first. 
 
