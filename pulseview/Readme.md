@@ -1,4 +1,5 @@
 This is an unofficial Pulseview windows installer to use the raspberry pi pico on windows.
+It is recommended that you uninstall previous versions first. 
 
 You may need to install this to get msvcr100.dll
 https://www.microsoft.com/en-us/download/details.aspx?id=26999![image](https://user-images.githubusercontent.com/99157244/158026832-9f6b139b-6ea1-4aa0-80c2-4fb8def398fa.png)
