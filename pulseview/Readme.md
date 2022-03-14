@@ -2,7 +2,7 @@ This is an unofficial Pulseview windows installer to use the raspberry pi pico o
 
 Github limits filesizes to 25MB but it is 40MB.  I think you should be able to download this without creating a drobox account.
 
-https://www.dropbox.com/s/n4auyf2ltbp7lai/pulseview-0.5.0-git-7e5c839-installer.exe?dl=0
+https://www.dropbox.com/s/rxk740b23gthnb3/pulseview-0.5.0-git-7e5c839-installer.exe?dl=0
 
 It is recommended that you uninstall previous versions first. 
 
