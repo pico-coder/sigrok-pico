@@ -1,5 +1,6 @@
 Running sigrok cli or pulseview at debug level 2 is highly recommended to see reported issues with user configurations.
 
+![alt text](https://github.com/pico-coder/sigrok-pico/blob/main/PICO_Sigrok_Rates.PNG)
 ## Channels
 
 ### 21 Digital Channels 
