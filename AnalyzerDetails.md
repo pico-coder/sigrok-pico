@@ -18,25 +18,11 @@ Note that disabling any unused channels will often reduce serial transfer overhe
   
 
 ## Trigger Modes
-2 triggering modes are supported, both of which only trigger on the digital inputs.
-### HW triggered via PIO
-This mode is only supported if all of the analog inputs are disabled. This is because there is the HW triggering is
-based on stalling the PIO until a value is seen on pin D2.  There is no good interlock to stall ADC DMA at the same time
-so the device will ignore this mode if it is requested along with analog channels. 
-
-D2 is the only supported trigger pin, and  is only level (not edge/change) sensitive.
-
-The trigger mode is specified via a special encoding of the sample rate because I don't know of any other libsigrok configuration to pass arbitrary values from the user to the device. (If you know of one, please let me know).
-The special config bits are specified in the lowest decimal character of the sample rate.  The value is specified as (sample_rate%10)&0x6, i.e. the remainder of dividing sample rate by 10 and then bitwise 
-AND with 0x6 to create a 3 bit value.
-
-- Bit 0 must be left at 0 (since Pulseview requires even sample rates)
-- Bit 1 sets the level value
-- Bit 2 enables the HW triggering
-
-Thus a sample rate of 10000 does not enable HW triggering, but a value of 10006 enables HW triggering with a level of 1 and a sample rate of 10000.
-      
-Note that the first trigger value seen will not be captured because it is used to unstall the PIO.
+HW triggering via PIO was supported in earlier versions, but removed in rev2 because:
+1) There was some issue where it seemed to false trigger when the triggering condition wasn't present.
+2) There was no clear way to specify HW vs Sw triggering in pulseview, especially when the change was made to specify sample rate via a dropdown selection.
+If needed you could clone the code for the device and reenable the one line that enabled the triggering.  
+Note that in the rev2 release the triggers are now sent to the device.  The device doesn't use them because the processing overhead for HW triggering is so high that it reduces the effective streaming rate below that of continuous software triggering on the host, and thus adds no value.
 
 ### SW triggered via libsigrok 
 Any one or more enabled digital pins can be use for triggering in this mode.  Only digital pins are used for triggering, but analog is captured in sync with the digital triggers.
@@ -45,15 +31,11 @@ SW triggers supports level, rising, falling, and changing across all channels. T
 A pre-capture ratio of 0 to 100% can also be specified. The pre capture buffer will only fill to the ratio if sufficient pretrigger samples are seen.
 Note that SW triggering adds substantial host side processing, and such processing on slower processors may limit the maximum usable streaming sample rate.
 
-### HW and SW modes can be combined
-This can only be used for digital only capture because HW triggering doesn't support analog.
-The HW trigger must occur first for the device to start sending data, and then the SW trigger is applied to the samples received at the host.
-
 ### Always trigger
-If neither a software or hardware trigger are specified, then the device will immediately capture data.
+If no trigger is specified, then the device will immediately capture data of a fixed length.
 
 ## Storage Modes
-The device supports two modes of storage of samples, Fixed Depth and Continuous streaming.  Fixed depth is enabled if the trigger mode is Always Trigger or HW trigger and the requested number of samples fits in the device storage space.
+The device supports two modes of storage of samples, Fixed Depth and Continuous streaming.  Fixed depth is enabled if the trigger mode is Always Trigger and the requested number of samples fits in the device storage space.
 Continuous streaming is enabled at all other times, thus any time SW triggering is enabled, or the number of samples is greater than the internal depth.  
 Fixed depth is a preferred mode because it guarantees that the device can store the samples and send them to host as USB transfer rates allow.  
 In continuous streaming it is possible that the required bandwidth to issue the samples is greater than the available USB bandwidth.  
@@ -62,10 +44,9 @@ The device can detect overflow cases in Continuous Streaming mode and send an ab
 Abort cases in Continous stream will cause the total number of samples to be reduced, but should not allow corrupted values to be sent.
 
 ## Sample rate
-Hint: Updates to the sample_rate in pulseview don't take effect until you hit enter, so do that before clicking run or you might capture with the old sample rate.
+For better usability, the user is given a fixed set of sample rates in pulseview.  The user is given the ability to specify sample rates that may be beyond the capacity of the device to store internally or to transfer to the host in time. 
 
-To provide flexibility, the user is given the ability to specify sample rates that may be beyond the capacity of the device to store internally or to transfer to the host in time. 
-It is up to the user to understand the limitations below and use accordingly.
+It is up to the user to understand the limitations below and use accordingly, but the host driver will limit sample rates and print errors and warnings when limits are exceeded.
 
 If multiple ADC channels are enabled, the specified sample rate is the rate per channel. 
 Since the RP2040 only supports one ADC conversion at a time the actual ADC rate must 2x or 3x the specified sample rate for 2 channel or 3 channel ADC.  
@@ -80,8 +61,8 @@ Soft limitations are recommendations that if not followed may cause aborts.
 Specifically they are related to the ability of the device to send sample data across the USB serial interface before the DMA updates overflow the storage buffers.
 Soft limitations are detected by the device when it sees a sample overflow issue and sends an abort signal to the host.  
 
-The protocol supports a 4 channel digital mode which supports run length encoding on the wire.  
-Assuming a high frequency sample rate of a relatively on low duty factor signals, the 4 channel mode may allow Continous Streaming and SW triggering of signals that may not otherwise be possible.
+The protocol supports a run length encoding (RLE) for all digital only sample modes which reduces the amount of data sent on the wire.  
+Assuming a high frequency sample rate of a relatively on low duty factor signals, RLE may allow Continous Streaming and SW triggering of signals that may not otherwise be possible.
 
 ## Sample rate hard limits
 ### Common sample rate
@@ -89,13 +70,12 @@ The PIO and ADC share a common sample rate.  This is because libsigrok only supp
 ### Sample rate granularity 
 The sample rate granularity is limited to the a granularity of the clock divisors of the PIO and ADC.  The ADC uses only the integer part of the fractional divisor of the 48Mhz USB clock.
 The PIO uses the full fractional divisor of the sysclk which is set to 120Mhz (the maximum supported PIO rate). 
-Pulseview allows for any arbitrary sample rate but the device code calculates the nearest divisor, so the actual sample rates are unkown unless the UART0 debug port is captured.
-It is recommended that for digital modes that integer divisors of 120Mhz be specified to get sample rates close to what is specified (i.e. 120,60,40,30,20,15,12,10Msps etc).
+Pulseview only provides frequencies which yield integer divisors for the PIO and ADC clocks to ensure that the two clocks do not drift over time which can happen with non integer divisors.  
+The command line interface will allow any specified frequency. It is recommended that for digital modes that integer divisors of 120Mhz be specified to get sample rates close to what is specified (i.e. 120,60,40,30,20,15,12,10Msps etc).
 As the sample rate is decreased the granularity increases.
 Since the ADC has a maximum frequency of 500khz off a 48Mhz clock it has a minimum divisor of 96 and thus a worst case granularity of 5khz.
 ### Min and Max Sample rates.
 The minimum sample rate is 5Khz to ensure the sample rate is within the 16 bit divisor.  
-
 The maximum sample rate for digital only is 120Msps.  
 If 8 or more digital channels are enabled sample rates of 60Msps or less are recommended to allow the DMA engine to do a read modify write operation from the PIO FIFO to memory.  
 Faster rates might work, or they might not...
@@ -106,10 +86,9 @@ Soft limits can be completely avoided by not using SW triggers and setting trace
 In the D4 optimized RLE mode, each byte on the wire holds a 4 bit sample value and a 0-7 sample RLE value, or an 8-640 sample RLE value.  
 Thus in this mode, it should be possible to Continuous Stream at a sample rate of 300ksps regardless of the sampled data activity.  If the activity factor is less, then higher sample rates are possible.
 For instance a 20% AF signal has been captured at a sample rate of 2 Msps.
-In the normal mode, each 7 bits of digital data takes one byte, and each analog sample takes a byte.  So a 12 bit digital trace with 2 analog channels takes 4 bytes per sample.
-At 400KB/sec, Continous Streaming would be limited to around 100Ksps.
-
+In the other digital only modes, each groups of 7 channels or sent in one byte and a one byte RLE encoding is used.
+In mixed digital/analog or analog only modes, each 7 bits of digital data takes one byte, and each analog sample takes a byte.  So a 12 bit digital trace with 2 analog channels takes 4 bytes per sample.
 
 ## Debug UART
-The hardware UART0 prints debug information to UART0 TX at 115200bps.  
+The hardware UART0 prints debug information to UART0 TX at 115200bps in rev1, and 921600 for rev2 and beyond.
 Since the sigrok driver on the host tries to report most user errors it is not required for use.  However, if you are filing a bug sighting having that output could be very useful.
