@@ -378,7 +378,7 @@ void __attribute__ ((noinline)) send_slices_2B(sr_device_t *d,uint8_t *dbuf){
        }//if cval!=lval
        lval=cval;
      }//for s
-   check_rle;
+   check_rle();
    check_tx_buf(1);
 }//send_slices_2B
 //4B is 17-21 channels and is the only one that must mask invalid bits which are captured by DMA
