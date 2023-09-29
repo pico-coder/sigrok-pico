@@ -1,6 +1,9 @@
 
-As of 28 Sept 2023 this pull request has been merged into mainline.  See https://github.com/sigrokproject/libsigrok/pull/181 for testing status.
+As of 28 Sept 2023 this pull request has been merged into mainline.
+See https://github.com/sigrokproject/libsigrok/pull/181 for testing status.
+
 /////////////////////////////////////////////////////////////////
+
 I have managed to do a cross compile of PulseView for windows.  Instructions to download are here.
 https://github.com/pico-coder/sigrok-pico/blob/main/pulseview/Readme.md
 
