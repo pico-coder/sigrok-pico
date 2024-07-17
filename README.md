@@ -1,11 +1,14 @@
+As of 28 Sept 2023 this pull request has been merged into mainline sigrok (https://github.com/sigrokproject/libsigrok/pull/181)
+It is highly recommended to install from https://sigrok.org/wiki/Downloads
 
-As of 28 Sept 2023 this pull request has been merged into mainline.
-See https://github.com/sigrokproject/libsigrok/pull/181 for testing status.
-
+Please start with the Getting Started page : https://github.com/pico-coder/sigrok-pico/blob/main/GettingStarted.md
 /////////////////////////////////////////////////////////////////
+Building this repo:
+Bbuilding is not recommended, but some people insist on trying.....)
 
-I have managed to do a cross compile of PulseView for windows.  Instructions to download are here.
-https://github.com/pico-coder/sigrok-pico/blob/main/pulseview/Readme.md
+I once did a cross compile of PulseView for windows.  The instructions and installer are left in place for historical reference, they are likely out of date.
+Instructions to download my build are here https://github.com/pico-coder/sigrok-pico/blob/main/pulseview/Readme.md
+Again, please use the main sigrok installer.
 
 For linux, many people have managed to combine my pull request into a libsigrok build. If you are on linux it's probably a practical experiment to try.  4GB of RAM is recommended for pulseview builds to avoid disk swap issues.  See SigrokBuildNotes.md
 
