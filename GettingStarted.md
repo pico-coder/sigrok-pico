@@ -1,3 +1,12 @@
+Warning: Getting the pico device to work on windows can be an initially frustrating experience, but usually the problem resolves itself.  
+Recommended steps to resolve issues:
+1) Close out any programs that access serial ports as windows won't allow multiple apps to access a port.
+2) Once pulseview is installed, do a reboot.
+3) Possibly use zadig to map the USB device (I apologize that it's been so long I can't really remember if zadig is atually needed).
+4) Try plugging/unplugging the device and/or opening closing pulseview a few times.
+5) Close pulseview, and open a serial device apps (Terraterm/Putty etc).  Send a "*" and then a "i" for identify and you should get a response. For some reason, other apps seem to have more success accessing the device than does the libserial code in pulseview.
+6) Go back and repeat any of the steps above.  (Yeah, I know it's frustrating, but eventually it seems to work for most folks).
+
 It is recommended that you read through the AnalyzerDetails.md for specifics on modes of the device, but if you just can't wait:
 
 1) Get some 1Kohm or greater resistors to put inline between the PICO inputs, you don't want to accidentally fry your PICO because you put in voltages <0V or >3.3V or accidentally jumpered ground to VCC. 
