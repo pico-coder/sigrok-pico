@@ -1,5 +1,6 @@
 As of 28 Sept 2023 this pull request has been merged into mainline sigrok (https://github.com/sigrokproject/libsigrok/pull/181)
-It is highly recommended to install from https://sigrok.org/wiki/Downloads
+It is highly recommended to install Nightly build from https://sigrok.org/wiki/Downloads (PulseView 0.4.2 and sigrok-cli 0.7.2 do not support sigrok-pico)
+
 
 Please start with the Getting Started page : https://github.com/pico-coder/sigrok-pico/blob/main/GettingStarted.md
 /////////////////////////////////////////////////////////////////
