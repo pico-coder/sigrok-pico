@@ -67,7 +67,7 @@ volatile bool mask_xfer_err;
 void my_stdio_usb_out_chars(const char *buf, int length) {
     static uint64_t last_avail_time;
     uint32_t owner;
-    if (tud_cdc_connected()) {
+    if (tud_ready()) {
         for (int i = 0; i < length;) {
             int n = length - i;
             int avail = (int) tud_cdc_write_available();
@@ -81,7 +81,7 @@ void my_stdio_usb_out_chars(const char *buf, int length) {
             } else {
                 tud_task();
 		tud_cdc_write_flush();
-                if (!tud_cdc_connected() ||
+                if (!tud_ready() ||
                     (!tud_cdc_write_available() && time_us_64() > last_avail_time + PICO_STDIO_USB_STDOUT_TIMEOUT_US)) {
                     break;
                 }
