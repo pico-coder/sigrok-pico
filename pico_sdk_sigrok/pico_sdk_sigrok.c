@@ -8,22 +8,18 @@
 
 #include <stdio.h>
 #include "pico/stdlib.h" //uart definitions
-#include <stdlib.h> //atoi,atol
+#include <stdlib.h> //atoi,atol, malloc
 #include "hardware/gpio.h"
-//Note: Hardware libraries must be added to CMakelists.txt
 #include "hardware/pio.h"
 #include "hardware/adc.h"
 #include "hardware/dma.h"
 #include "hardware/structs/bus_ctrl.h"
-#include "hardware/structs/pwm.h"
-#include "hardware/sync.h" //wev
-#include "pico/binary_info.h"
-#include "stdarg.h"
-#include "pico/multicore.h"
-#include <string.h>
-#include "sr_device.h"
+#include "hardware/uart.h"
 #include "hardware/clocks.h"
+#include "pico/multicore.h"
 #include "tusb.h"//.tud_cdc_write...
+
+#include "sr_device.h"
 
 //NODMA is a debug mode that disables the DMA engine and prints raw PIO FIFO outputs
 //it is limited to testing a small number of samples equal to the PIO FIFO depths
@@ -31,7 +27,6 @@
 //These two enable debug print outs of D4 generation, D4_DBG2 are consider higher verbosity
 //#define D4_DBG 1
 //#define D4_DBG2 2
-
 
 uint8_t *capture_buf;
 volatile uint32_t c1cnt=0;
@@ -684,7 +679,7 @@ int main(){
     uint64_t starttime,endtime;
     set_sys_clock_khz(SYS_CLK_BASE,true);
     stdio_usb_init();
-    uart_set_format(uart0,8,1,1);
+    uart_set_format(uart0,8,1,0);
     uart_init(uart0,921600);
     gpio_set_function(0, GPIO_FUNC_UART);
     gpio_set_function(1, GPIO_FUNC_UART);   
