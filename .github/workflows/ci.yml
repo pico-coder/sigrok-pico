@@ -40,7 +40,7 @@ jobs:
           cd build
           make
           ls -lh
-          cd ..
+          cd ../..
           cp pico_sdk_sigrok/build/pico_sdk_sigrok.uf2 pico_sdk_sigrok.uf2
           cp pico_sdk_sigrok/build/pico_sdk_sigrok.elf pico_sdk_sigrok.elf
 
