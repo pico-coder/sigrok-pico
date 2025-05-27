@@ -41,15 +41,15 @@ jobs:
           make
           ls -lh
           cd ..
-          cp build/pico_sdk_sigrok.uf2 sigrok-pico.uf2
-          cp build/pico_sdk_sigrok.elf sigrok-pico.elf
+          cp pico_sdk_sigrok/build/pico_sdk_sigrok.uf2 pico_sdk_sigrok.uf2
+          cp pico_sdk_sigrok/build/pico_sdk_sigrok.elf pico_sdk_sigrok.elf
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: sigrok-pico
           path: |
-            sigrok-pico.uf2
-            sigrok-pico.elf
+            pico_sdk_sigrok.uf2
+            pico_sdk_sigrok.elf
             LICENSE
             README.md
