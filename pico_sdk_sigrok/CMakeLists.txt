@@ -34,7 +34,7 @@ pico_enable_stdio_uart(pico_sdk_sigrok 0)
 pico_add_extra_outputs(pico_sdk_sigrok)
 
 target_link_libraries(
-    pico_sdk_sigrok 
+    pico_sdk_sigrok
     pico_stdlib
     hardware_adc
     hardware_dma
