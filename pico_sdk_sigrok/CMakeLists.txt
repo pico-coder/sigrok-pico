@@ -21,6 +21,9 @@ include(pico_sdk_import.cmake)
 project(pico_sdk_sigrok C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
+# DTR is not used for USB CDC connection, so we can set this to 1
+# This will allow PulseView to connect independently of the DTR signal
+add_definitions(-DPICO_STDIO_USB_CONNECTION_WITHOUT_DTR=1)
 pico_sdk_init()
 
 add_executable(pico_sdk_sigrok
