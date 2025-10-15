@@ -10,7 +10,7 @@ Recommended steps to resolve issues:
 It is recommended that you read through the AnalyzerDetails.md for specifics on modes of the device, but if you just can't wait:
 
 1) Get some 1Kohm or greater resistors to put inline between the PICO inputs, you don't want to accidentally fry your PICO because you put in voltages <0V or >3.3V or accidentally jumpered ground to VCC. 
-2) Get the [sigrok-pico/pico_sdk_sigrok/build/pico_sdk_sigrok.uf2](./pico_sdk_sigrok/build/pico_sdk_sigrok.uf2) file and program it to your PICO devices (examples are online, everywhere).
+2) Get the appropriate uf2 from [sigrok-pico/pico_sdk_sigrok/release](./pico_sdk_sigrok/release) file and program it to your PICO devices (examples are online, everywhere).
 3) Install Pulseview and skip to step 7, or sigrok-cli - follow descriptions from the sigrok pages for both.
 4) Replug the PICO to reset it, and then use sigrok-cli to scan for avaliable serial ports
 ```
