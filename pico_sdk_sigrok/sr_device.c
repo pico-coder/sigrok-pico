@@ -8,6 +8,8 @@
 
 int Dprintf(const char *fmt, ...)
 {
+
+  #if(UART_EN == 1)
    va_list argptr;
    int len = 1;
    char _dstr[256];
@@ -28,15 +30,16 @@ int Dprintf(const char *fmt, ...)
       uart_tx_wait_blocking(uart0);
    }
    return len;
+  #else
+   return 0;
+   #endif
 }
 
 // reset as part of init, or on a completed send
 void reset(sr_device_t *d)
 {
-   d->sending = 0;
+   d->state==IDLE;
    d->cont = 0;
-   d->aborted = false;
-   d->started = false;
    d->scnt = 0;
    // d->notfirst=false;
    // Set triggered by default so that we don't check for HW triggers
@@ -89,7 +92,7 @@ void tx_init(sr_device_t *d)
       d->d_nps = 2;
    }
 
-   // Digital channels must enable from D0 and go up, but that is checked by the host
+   // Digital channels must enable from bottom and go up, but that is checked by the host
    d->d_chan_cnt = 0;
    for (int i = 0; i < NUM_D_CHAN; i++)
    {
@@ -100,7 +103,7 @@ void tx_init(sr_device_t *d)
       }
    }
    d->d_tx_bps = (d->d_chan_cnt + 6) / 7;
-   d->sending = true;
+   d->state=STARTED;
 }
 // Process incoming character stream
 // Return 1 if the device rspstr has a response to send to host
@@ -115,7 +118,7 @@ int process_char(sr_device_t *d, char charin)
    if (charin == '*')
    {
       reset(d);
-      Dprintf("RST* %d\n\r", d->sending);
+      Dprintf("RST* %d\n\r", d->state);
       return 0;
    }
    else if ((charin == '\r') || (charin == '\n'))
@@ -123,6 +126,18 @@ int process_char(sr_device_t *d, char charin)
       d->cmdstr[d->cmdstrptr] = 0;
       switch (d->cmdstr[0])
       {
+      //Enter boot_sel_mode. Require a long string to prevent accidental reboots
+      case 'b':
+         if(!strcmp(d->cmdstr,"bootsel")){
+            Dprintf("Entering Bootsel mode\n\r");
+            sleep_ms(1000);
+            //reset with inputs per cold boot
+            rom_reset_usb_boot(0,0);
+         }else{
+            Dprintf("Invald bootsel command - enter \"bootsel\"\n\r");
+         } 
+         ret=0;
+         break;
       case 'i':
          // SREGEN,AxxyDzz,00 - num analog, analog size, num digital,version
          sprintf(d->rspstr, "SRPICO,A%02d1D%02d,02", NUM_A_CHAN, NUM_D_CHAN);
@@ -158,6 +173,7 @@ int process_char(sr_device_t *d, char charin)
             ret = 0;
          }
          break;
+      //get analog scale
       case 'a':
          tmpint = atoi(&(d->cmdstr[1])); // extract channel number
          if (tmpint >= 0)
@@ -218,8 +234,9 @@ int process_char(sr_device_t *d, char charin)
          Dprintf("Pre-trigger samples %d cmd %s\n\r", tmpint, d->cmdstr);
          ret = 1;
          break;
+      //Enable/disable Analog channel   
       // format is Axyy where x is 0 for disabled, 1 for enabled and yy is channel #
-      case 'A':                           /// enable analog channel always a set
+      case 'A':                          
          tmpint = d->cmdstr[1] - '0';     // extract enable value
          tmpint2 = atoi(&(d->cmdstr[2])); // extract channel number
          if ((tmpint >= 0) && (tmpint <= 1) && (tmpint2 >= 0) && (tmpint2 <= 31))
@@ -234,7 +251,9 @@ int process_char(sr_device_t *d, char charin)
             ret = 0;
          }
          break;
-         // format is Dxyy where x is 0 for disabled, 1 for enabled and yy is channel #
+      //Enable/disable digital channel.
+      // format is Dxyy where x is 0 for disabled, 1 for enabled and yy is channel #
+      //Note that this is a fixed number 0..N regardless of channel naming and/or pins enabled
       case 'D':                           /// enable digital channel always a set
          tmpint = d->cmdstr[1] - '0';     // extract enable value
          tmpint2 = atoi(&(d->cmdstr[2])); // extract channel number
@@ -242,7 +261,7 @@ int process_char(sr_device_t *d, char charin)
          {
             d->d_mask = d->d_mask & ~(1 << tmpint2);
             d->d_mask = d->d_mask | (tmpint << tmpint2);
-            // Dprintf("D%d EN %d Msk 0x%X\n\r",tmpint2,tmpint,d->d_mask);
+            Dprintf("D%d EN %d Msk 0x%X\n\r",tmpint2,tmpint,d->d_mask);
             ret = 1;
          }
          else
@@ -250,6 +269,42 @@ int process_char(sr_device_t *d, char charin)
             ret = 0;
          }
          break;
+      //Get signal name.  The name can only be pulled from the device, there is no
+      //set because the device has no use for the names.  Between the host and device
+      //the names are always 0..N for all types, but this mode allows the PIN/board/device
+      //names to be communicated.
+      //format is n(A/D)xx where A/D selects analog digital, and x is one or two characters representing an integer
+      //Note: this functional call may return names for channels that don't exist.  It's up
+      //to the caller to only ask for names for channels reported in the identify
+      case 'n':
+          tmpint=atoi(&(d->cmdstr[2]));
+          //Dprintf("Name %c %d \n\r", d->cmdstr[1],tmpint);
+          if(d->cmdstr[1]=='D'){
+//On standard PICO and PICO2
+//GP0-22 are continous, and then GP26,27,28
+//So in basemode, D0-D20 are GP2..GP22
+//in dig_26_mode D0-D22,D23-D25 are GP0..GP22,GP26..GP28
+//in dig_32_mode D0-D31 are GP0..GP31
+            #ifdef BASE_MODE //D0-20 are GP2..GP22
+               tmpint2=tmpint+2;
+            #elif DIG_26_MODE //D0-D22,D23-D25 are GP0..GP22,GP26..GP28
+               tmpint2=(tmpint<=22) ? tmpint : tmpint+3; 
+            #else //DIG_32_MODE and all else are direct mapped.
+               tmpint2=tmpint;
+            #endif
+            Dprintf("NameD %c %d %d\n\r", d->cmdstr[1],tmpint,tmpint2);
+            sprintf(d->rspstr, "GP%d",tmpint2);
+            ret=1;            
+          } else  if(d->cmdstr[1]=='A'){
+            //ADC0/1/2 are GP26,27,28
+            tmpint2=tmpint+26;
+            Dprintf("NameA %c %d %d\n\r", d->cmdstr[1],tmpint,tmpint2);
+            sprintf(d->rspstr, "ADC%d_GP%d",tmpint,tmpint2);
+            ret=1;            
+          } else{
+            ret=0;
+          }
+          break;
       default:
          Dprintf("bad command %s\n\r", d->cmdstr);
          ret = 0;
@@ -257,9 +312,8 @@ int process_char(sr_device_t *d, char charin)
       //        Dprintf("CmdDone %s\n\r",d->cmdstr);
       d->cmdstrptr = 0;
    }
-   else
-   { // no CR/LF
-      if (d->cmdstrptr >= 19)
+   else // no CR/LF
+   { if (d->cmdstrptr >= 19)
       {
          d->cmdstr[18] = 0;
          Dprintf("Command overflow %s\n\r", d->cmdstr);
@@ -267,7 +321,7 @@ int process_char(sr_device_t *d, char charin)
       }
       d->cmdstr[d->cmdstrptr++] = charin;
       ret = 0;
-   } // else
+   } // else no CR/LF
    // default return 0 means to not send any kind of response
    return ret;
 } // process_char
