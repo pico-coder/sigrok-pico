@@ -4,7 +4,7 @@ Use a Raspberry Pi PICO (RP2040) as a logic analyzer and oscilloscope with sigro
 
 ## Status
 =======
-Please start with the Getting Started page : https://github.com/pico-coder/sigrok-pico/blob/main/GettingStarted.md
+Please start with the Getting Started page : [github.com/pico-coder/sigrok-pico/blob/main/GettingStarted.md](https://github.com/pico-coder/sigrok-pico/blob/main/USER_GUIDE.md#getting-started)
 
 **Merged to mainline sigrok** (September 2023)
 
